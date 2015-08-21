@@ -1,0 +1,64 @@
+#!/bin/bash
+
+SUITE=${SUITE:-wheezy}
+
+ROOTFS_FOLDER=rootfs
+DATA_FOLDER=data
+CLEAN_ROOTFS=$DATA_FOLDER/$SUITE-clean.txz
+CONFIG_ROOTFS=$DATA_FOLDER/$SUITE-config.txz
+DEBOOT_INCLUDES=mdadm,openssh-server
+DEBIAN_REPO="http://ftp.br.debian.org/debian/"
+
+function usage {
+	cat <<- EOF
+	$( basename $0 ) [-h] [rootfsdir]
+	    -d	Create new rootfs avoiding the cached
+	    -h	This help
+	    -r	Debian repository
+	    -s	Debian SUITE [wheezy]
+	EOF
+}
+
+function do_bootstrap {
+	rm -rf $ROOTFS_FOLDER
+	mkdir -p $ROOTFS_FOLDER
+
+	qemu-debootstrap --arch armhf --include $DEBOOT_INCLUDES $SUITE $ROOTFS_FOLDER $DEBIAN_REPO
+	chroot $ROOTFS_FOLDER apt-get clean
+	tar -I pxz -cf $CLEAN_ROOTFS -C $ROOTFS_FOLDER .
+}
+
+function unpack_rootfs {
+	rm -rf $ROOTFS_FOLDER
+	mkdir -p $ROOTFS_FOLDER
+
+	tar -Jxf $CLEAN_ROOTFS -C $ROOTFS_FOLDER
+}
+
+function create_rootfs {
+	if [ -z "$FORCE_DEBOOTSTRAP" ] && [ -f $CLEAN_ROOTFS ]; then
+		unpack_rootfs
+	else
+		do_bootstrap
+	fi 
+}
+
+function config_rootfs {
+	cp $CLEAN_ROOTFS $CONFIG_ROOTFS
+}
+
+while getopts dhr:s: opt; do
+	case "$opt" in
+		d) FORCE_DEBOOTSTRAP=1 ;;
+		r) DEBIAN_REPO=${OPTARG} ;;
+		s) SUITE=${OPTARG} ;;
+		h) usage ;;
+	esac
+done
+
+if [ -n "$FORCE_DEBOOTSTRAP" ] || [ ! -f $CONFIG_ROOTFS ]; then
+	create_rootfs
+	config_rootfs
+fi
+echo "Rootfs is ready at $CONFIG_ROOTFS"
+
