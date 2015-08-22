@@ -2,10 +2,10 @@
 
 HOST_NAME=${HOST_NAME:-"linkstation.home"}
 
-ROOTFS_FOLDER=rootfs
-DATA_FOLDER=data
-DEBOOT_INCLUDES=mdadm,openssh-server,locales
-DEBIAN_REPO="http://ftp.br.debian.org/debian/"
+ROOTFS_FOLDER=${ROOTFS_FOLDER:-"rootfs"}
+DATA_FOLDER=${DATA_FOLDER:-"data"}
+DEBOOT_INCLUDES=${DEBOOT_INCLUDES:-"mdadm,openssh-server,locales"}
+DEBIAN_REPO=${DEBIAN_REPO:-"http://ftp.br.debian.org/debian/"}
 
 
 function usage {
@@ -35,14 +35,6 @@ function unpack_rootfs {
 	tar -Jxf $CLEAN_ROOTFS -C $ROOTFS_FOLDER
 }
 
-# function create_rootfs {
-# 	if [ -z "$FORCE_DEBOOTSTRAP" ] && [ -f $CLEAN_ROOTFS ]; then
-# 		unpack_rootfs
-# 	else
-# 		do_bootstrap
-# 	fi 
-# }
-
 function config_rootfs {
 	echo "Configuring rootfs!"
 	cnf_hostname $HOST_NAME
@@ -50,7 +42,7 @@ function config_rootfs {
 	cnf_mdadm
 	cnf_sources
 	cnf_interfaces
-	cnf_password $HOST_NAME
+	cnf_password ${HOST_NAME%.*}
 	cnf_locales
 	cnf_tzdata
 	cnf_fstab
@@ -75,7 +67,7 @@ CONFIG_ROOTFS=$DATA_FOLDER/$SUITE-config.txz
 if [ -f "scripts/$SUITE.sh" ]; then
 	. scripts/$SUITE.sh
 else
-	echo "The debian suite $SUITE is not supported."
+	echo "This debian suite \"$SUITE\" is not supported."
 	exit 1
 fi
 

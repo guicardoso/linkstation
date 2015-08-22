@@ -5,7 +5,7 @@ function cnf_hostname {
 }
 
 function cnf_hosts {
-	sed -i "s/localhost/localhost\ $1/" $ROOTFS_FOLDER/etc/hosts
+	sed -i "s/localhost/localhost\ ${1%.*}/" $ROOTFS_FOLDER/etc/hosts
 }
 
 function cnf_mdadm {
@@ -36,7 +36,7 @@ function cnf_interfaces {
 }
 
 function cnf_password {
-	chroot $ROOTFS_FOLDER echo -e "$1\n$1" | passwd
+	chroot $ROOTFS_FOLDER echo -e "$1\n$1\n" | passwd
 }
 
 function cnf_locales {
