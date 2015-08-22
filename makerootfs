@@ -1,21 +1,12 @@
 #!/bin/bash
 
 HOST_NAME=${HOST_NAME:-"linkstation.home"}
-SUITE=${SUITE:-"wheezy"}
 
 ROOTFS_FOLDER=rootfs
 DATA_FOLDER=data
-CLEAN_ROOTFS=$DATA_FOLDER/$SUITE-clean.txz
-CONFIG_ROOTFS=$DATA_FOLDER/$SUITE-config.txz
-DEBOOT_INCLUDES=mdadm,openssh-server
+DEBOOT_INCLUDES=mdadm,openssh-server,locales
 DEBIAN_REPO="http://ftp.br.debian.org/debian/"
 
-if [ -f "scripts/$SUITE.sh" ]; then
-	. scripts/$SUITE.sh
-else
-	echo "The debian suite $SUITE is not supported."
-	exit 1
-fi
 
 function usage {
 	cat <<- EOF
@@ -44,15 +35,16 @@ function unpack_rootfs {
 	tar -Jxf $CLEAN_ROOTFS -C $ROOTFS_FOLDER
 }
 
-function create_rootfs {
-	if [ -z "$FORCE_DEBOOTSTRAP" ] && [ -f $CLEAN_ROOTFS ]; then
-		unpack_rootfs
-	else
-		do_bootstrap
-	fi 
-}
+# function create_rootfs {
+# 	if [ -z "$FORCE_DEBOOTSTRAP" ] && [ -f $CLEAN_ROOTFS ]; then
+# 		unpack_rootfs
+# 	else
+# 		do_bootstrap
+# 	fi 
+# }
 
 function config_rootfs {
+	echo "Configuring rootfs!"
 	cnf_hostname $HOST_NAME
 	cnf_hosts $HOST_NAME
 	cnf_mdadm
@@ -61,6 +53,9 @@ function config_rootfs {
 	cnf_password $HOST_NAME
 	cnf_locales
 	cnf_tzdata
+	cnf_fstab
+
+	tar -I pxz -cf $CONFIG_ROOTFS -C $ROOTFS_FOLDER .
 }
 
 while getopts cdhr:s: opt; do
@@ -73,16 +68,29 @@ while getopts cdhr:s: opt; do
 	esac
 done
 
+SUITE=${SUITE:-"wheezy"}
+CLEAN_ROOTFS=$DATA_FOLDER/$SUITE-clean.txz
+CONFIG_ROOTFS=$DATA_FOLDER/$SUITE-config.txz
+
+if [ -f "scripts/$SUITE.sh" ]; then
+	. scripts/$SUITE.sh
+else
+	echo "The debian suite $SUITE is not supported."
+	exit 1
+fi
+
 STATE="START"
 while [ $STATE != "DONE" ]; do
 	case $STATE in
 		START)
 			[ -n "$FORCE_DEBOOTSTRAP" ] && { do_bootstrap; STATE="CACHED"; continue; }
 			[ -f "$CLEAN_ROOTFS" ] && { STATE="CACHED"; continue; }
+			{ do_bootstrap; STATE="CACHED"; continue; }
 			;;
 		CACHED)
 			[ -n "$FORCE_CONFIG" ] && { unpack_rootfs; config_rootfs; STATE="DONE"; continue; }
 			[ -f "$CONFIG_ROOTFS" ] && { STATE="DONE"; continue; }
+			{ config_rootfs; STATE="DONE"; continue; }
 			;;
 	esac
 done
